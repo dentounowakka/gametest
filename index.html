@@ -1,1 +1,209 @@
-テスト
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スマホ風ガチャシミュレーター</title>
+    <style>
+        :root {
+            --ssr-color: #ffd700;
+            --ssr-glow: rgba(255, 215, 0, 0.8);
+            --sr-color: #9370db;
+            --r-color: #4682b4;
+            --bg-color: #1e1e2f;
+            --text-color: #ffffff;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            margin-bottom: 30px;
+        }
+
+        button {
+            background-color: #ff4757;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 0 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: transform 0.1s, background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #ff6b81;
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(2px);
+        }
+
+        #result-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            max-width: 800px;
+            margin: 0 auto;
+            min-height: 200px;
+        }
+
+        .item-card {
+            width: 120px;
+            height: 160px;
+            background-color: #2f3542;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border: 3px solid transparent;
+            opacity: 0;
+            transform: scale(0.5);
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .item-rarity {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .item-name {
+            font-size: 14px;
+            padding: 0 5px;
+            word-break: keep-all;
+        }
+
+        /* レアリティ別のスタイル */
+        .rarity-SSR {
+            border-color: var(--ssr-color);
+            box-shadow: 0 0 15px var(--ssr-glow), inset 0 0 10px var(--ssr-glow);
+            color: var(--ssr-color);
+            text-shadow: 0 0 5px var(--ssr-glow);
+        }
+
+        .rarity-SR {
+            border-color: var(--sr-color);
+            color: var(--sr-color);
+        }
+
+        .rarity-R {
+            border-color: var(--r-color);
+            color: var(--r-color);
+        }
+
+        /* アニメーション遅延用（10連ガチャ時の順番表示） */
+        .delay-0 { animation-delay: 0.0s; }
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+        .delay-5 { animation-delay: 0.5s; }
+        .delay-6 { animation-delay: 0.6s; }
+        .delay-7 { animation-delay: 0.7s; }
+        .delay-8 { animation-delay: 0.8s; }
+        .delay-9 { animation-delay: 0.9s; }
+
+        @keyframes popIn {
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>スマホ風ガチャシミュレーター</h1>
+    
+    <div class="controls">
+        <button id="btn-single">1回引く</button>
+        <button id="btn-multi">10連を引く</button>
+    </div>
+
+    <div id="result-container">
+        </div>
+
+    <script>
+        // アイテムデータプール
+        const itemPool = {
+            SSR: ["聖剣エクスカリバー", "神龍の杖", "幻帝の鎧"],
+            SR:  ["炎の剣", "氷の盾", "癒やしの指輪"],
+            R:   ["鉄の剣", "銅の盾", "薬草"]
+        };
+
+        // ガチャを1回引くロジック
+        function rollSingle() {
+            const rand = Math.random() * 100; // 0.00 〜 99.99
+            
+            let rarity, items;
+            if (rand < 3) { // 3%
+                rarity = "SSR";
+                items = itemPool.SSR;
+            } else if (rand < 20) { // 17% (3% + 17% = 20%)
+                rarity = "SR";
+                items = itemPool.SR;
+            } else { // 80%
+                rarity = "R";
+                items = itemPool.R;
+            }
+
+            // 選ばれたレアリティの中からランダムに1つのアイテム名を取得
+            const randomItem = items[Math.floor(Math.random() * items.length)];
+            
+            return { rarity: rarity, name: randomItem };
+        }
+
+        // 画面にアイテムを描画するロジック
+        function renderItems(items) {
+            const container = document.getElementById('result-container');
+            container.innerHTML = ''; // 前回の結果をクリア
+
+            items.forEach((item, index) => {
+                const card = document.createElement('div');
+                // クラスにレアリティとアニメーション遅延を付与
+                card.className = `item-card rarity-${item.rarity} delay-${index}`;
+                
+                card.innerHTML = `
+                    <div class="item-rarity">${item.rarity}</div>
+                    <div class="item-name">${item.name}</div>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        // イベントリスナーの登録
+        document.getElementById('btn-single').addEventListener('click', () => {
+            const result = rollSingle();
+            renderItems([result]);
+        });
+
+        document.getElementById('btn-multi').addEventListener('click', () => {
+            const results = [];
+            for (let i = 0; i < 10; i++) {
+                results.push(rollSingle());
+            }
+            renderItems(results);
+        });
+    </script>
+</body>
+</html>
