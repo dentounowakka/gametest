@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タイムセール争奪戦 - 限界突破版</title>
+    <style>
+        :root {
+            --primary: #ff5a5f;
+            --bg: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --border: #e4e6eb;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #app-container {
+            width: 100%;
+            max-width: 400px;
+            height: 700px;
+            background-color: var(--bg);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: var(--card-bg);
+            padding: 15px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--primary);
+            border-bottom: 1px solid var(--border);
+            z-index: 10;
+        }
+
+        .screen {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            position: absolute;
+            top: 55px; bottom: 0; left: 0; right: 0;
+            background: var(--bg);
+            transition: opacity 0.2s;
+        }
+
+        .hidden { display: none !important; opacity: 0; pointer-events: none; }
+
+        /* フェーズ0: スタート画面 */
+        .start-box {
+            display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%;
+            text-align: center;
+        }
+        .start-box h1 { font-size: 28px; color: var(--primary); margin-bottom: 10px; }
+        .start-box p { color: #7f8c8d; margin-bottom: 40px; line-height: 1.5; font-weight: bold;}
+        .btn-start {
+            padding: 20px 40px; font-size: 24px; font-weight: bold; color: white; background-color: var(--primary);
+            border: none; border-radius: 50px; cursor: pointer; box-shadow: 0 4px 15px rgba(255, 90, 95, 0.4);
+            transition: transform 0.1s;
+        }
+        .btn-start:active { transform: scale(0.95); }
+
+        /* フェーズ1: 商品選択 */
+        .target-announcement {
+            background: #e8f4fd; border-left: 5px solid #3498db; padding: 15px;
+            margin-bottom: 20px; border-radius: 4px; text-align: center;
+        }
+        .target-announcement h3 { margin: 0 0 5px 0; font-size: 16px; color: #2980b9; }
+        .target-announcement .target-name { font-size: 20px; font-weight: bold; color: #e74c3c; }
+        
+        .product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .grid-item {
+            background: var(--card-bg); border-radius: 8px; padding: 10px;
+            text-align: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: transform 0.1s; border: 2px solid transparent;
+        }
+        .grid-item:active { transform: scale(0.95); }
+        .grid-img { height: 80px; background: #e0e0e0; margin-bottom: 10px; border-radius: 4px; display:flex; align-items:center; justify-content:center; font-size: 40px;}
+
+        /* フェーズ2: カート追加待機 */
+        .detail-card { background: var(--card-bg); border-radius: 8px; padding: 20px; text-align: center; }
+        .status-msg { font-size: 16px; font-weight: bold; min-height: 24px; margin: 15px 0; color: var(--primary); }
+        .action-btn {
+            width: 100%; padding: 15px; font-size: 18px; font-weight: bold; color: white;
+            border: none; border-radius: 8px; cursor: pointer; transition: transform 0.1s;
+        }
+        .action-btn:active { transform: scale(0.98); }
+        .btn-idle { background-color: #3498db; }
+        .btn-waiting { background-color: #bdc3c7; cursor: not-allowed; }
+        .btn-ready { background-color: #e74c3c; box-shadow: 0 0 15px rgba(231, 76, 60, 0.6); }
+
+        /* フェーズ3: 決済 */
+        .checkout-box { background: var(--card-bg); border-radius: 8px; padding: 20px; }
+        .summary-row { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: bold; font-size: 18px;}
+        .terms-box {
+            background: #fff3cd; padding: 10px; border-radius: 4px; margin-bottom: 15px;
+            border: 1px solid #ffe69c; display: flex; align-items: center; cursor: pointer;
+        }
+        .terms-box input { margin-right: 10px; transform: scale(1.5); cursor: pointer; }
+        
+        .credit-card-box { border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-bottom: 20px; }
+        .cvv-hint { font-size: 14px; color: #7f8c8d; margin-bottom: 5px; }
+        .cvv-input-group { display: flex; align-items: center; gap: 10px; }
+        .cvv-input-group input {
+            width: 80px; padding: 10px; font-size: 18px; border: 2px solid #bdc3c7;
+            border-radius: 4px; text-align: center; font-weight: bold;
+        }
+        .cvv-input-group input:focus { outline: none; border-color: #3498db; }
+
+        /* フェーズ4: 結果 */
+        .result-box { text-align: center; margin-top: 30px; }
+        .time-display { font-size: 36px; font-weight: bold; color: #2ecc71; margin: 20px 0; }
+        .best-score { background: #ffeaa7; padding: 10px; border-radius: 20px; font-weight: bold; color: #d35400; margin-bottom: 20px; }
+
+        /* 妨害ポップアップ */
+        .fake-popup {
+            position: absolute; background: rgba(44, 62, 80, 0.95); color: white;
+            padding: 10px 15px; border-radius: 8px; font-size: 12px; font-weight: bold;
+            z-index: 100; pointer-events: none;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <header>🛒 ゲリラセール会場</header>
+
+        <div id="screen-start" class="screen">
+            <div class="start-box">
+                <h1>決戦の準備は<br>いいですか？</h1>
+                <p>商品は8秒〜20秒で売り切れます。<br>誰よりも早く決済を完了させろ！</p>
+                <button id="btn-start" class="btn-start">開始</button>
+            </div>
+        </div>
+
+        <div id="screen-select" class="screen hidden">
+            <div class="target-announcement">
+                <h3>今回のターゲット商品</h3>
+                <div id="target-product-name" class="target-name">???</div>
+            </div>
+            <p style="font-weight: bold; text-align: center;">急いでターゲットを見つけてタップしろ！</p>
+            <div class="product-grid" id="product-grid"></div>
+        </div>
+
+        <div id="screen-detail" class="screen hidden">
+            <div class="detail-card">
+                <div id="detail-img" class="grid-img" style="font-size: 60px;">🎁</div>
+                <h2 id="detail-name">商品名</h2>
+                <div style="color: #e74c3c; font-size: 24px; font-weight: bold;">¥198,000</div>
+                <div id="detail-status" class="status-msg">待機中...</div>
+                <button id="btn-cart" class="action-btn btn-waiting">まだ押さないで</button>
+            </div>
+        </div>
+
+        <div id="screen-checkout" class="screen hidden">
+            <div class="checkout-box">
+                <h2>注文確認</h2>
+                <div class="summary-row"><span>合計</span><span style="color:#e74c3c">¥198,000</span></div>
+                
+                <div class="credit-card-box">
+                    <div style="font-weight: bold; margin-bottom: 10px;">💳 登録済みカード (**** 1234)</div>
+                    <div class="cvv-hint">お手元のカード裏面にある<span id="required-cvv" style="font-weight: bold; color: #e74c3c;">000</span>を入力してください</div>
+                    <div class="cvv-input-group">
+                        <input type="number" id="input-cvv" placeholder="CVV" maxlength="3" oninput="javascript: if (this.value.length > this.maxLength) this.value = this.value.slice(0, this.maxLength);">
+                        <span style="font-size: 12px; color: #7f8c8d;">※3桁の数字</span>
+                    </div>
+                </div>
+
+                <label class="terms-box">
+                    <input type="checkbox" id="check-terms">
+                    利用規約と返品特約に同意する（必須）
+                </label>
+                
+                <button id="btn-pay" class="action-btn btn-ready">注文を確定する</button>
+                <div id="checkout-error" style="color: red; margin-top: 10px; font-weight: bold; text-align: center; min-height: 20px;"></div>
+            </div>
+        </div>
+
+        <div id="screen-result" class="screen hidden">
+            <div class="result-box">
+                <h2 id="result-title">購入完了！</h2>
+                <div id="result-time" class="time-display">0.000 秒</div>
+                <div id="best-score-display" class="best-score">最高記録: なし</div>
+                <div id="result-eval" style="margin-bottom: 30px; font-weight: bold; line-height: 1.5;"></div>
+                <button id="btn-retry" class="action-btn btn-idle">トップに戻る</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const screens = {
+            start: document.getElementById('screen-start'),
+            select: document.getElementById('screen-select'),
+            detail: document.getElementById('screen-detail'),
+            checkout: document.getElementById('screen-checkout'),
+            result: document.getElementById('screen-result')
+        };
+        
+        let gameStartTime = 0;
+        let soldOutTime = 0; // 売り切れになるまでの時間(ms)
+        let timeoutId = null;
+        let distractionIntervalId = null;
+        let detailState = 'WAITING';
+        let currentTarget = null;
+        let currentCvv = "";
+
+        let bestScore = localStorage.getItem('flashSaleTotalBestScore_v5');
+
+        // 商品のマスターデータ
+        const productPool = [
+            { id: 1, name: "限定ゲーミングPC", icon: "💻" },
+            { id: 2, name: "幻のグラボ RTX9090", icon: "🖲️" },
+            { id: 3, name: "新型ゲーム機 Pro", icon: "🎮" },
+            { id: 4, name: "プレミア・スニーカー", icon: "👟" },
+            { id: 5, name: "純金製スマホケース", icon: "📱" },
+            { id: 6, name: "謎の福袋", icon: "🛍️" },
+            { id: 7, name: "高級スマートウォッチ", icon: "⌚" },
+            { id: 8, name: "伝説のキーボード", icon: "⌨️" }
+        ];
+
+        function hideAllScreens() {
+            Object.values(screens).forEach(s => s.classList.add('hidden'));
+        }
+
+        // --- 初期化（スタート画面） ---
+        function initApp() {
+            hideAllScreens();
+            screens.start.classList.remove('hidden');
+            document.getElementById('input-cvv').value = '';
+            document.getElementById('check-terms').checked = false;
+        }
+
+        // 開始ボタンの処理
+        document.getElementById('btn-start').addEventListener('click', () => {
+            // 8000ms 〜 20000ms の間で売り切れ時間を決定
+            soldOutTime = Math.random() * 12000 + 8000;
+            
+            // 全体の計測をこの瞬間からスタート
+            gameStartTime = performance.now();
+            
+            setupPhase1();
+            hideAllScreens();
+            screens.select.classList.remove('hidden');
+        });
+
+        // --- フェーズ1: 商品選択 ---
+        function setupPhase1() {
+            const shuffledPool = [...productPool].sort(() => 0.5 - Math.random());
+            const displayItems = shuffledPool.slice(0, 4);
+            currentTarget = displayItems[Math.floor(Math.random() * 4)];
+            
+            document.getElementById('target-product-name').textContent = `${currentTarget.icon} ${currentTarget.name}`;
+            
+            const grid = document.getElementById('product-grid');
+            grid.innerHTML = '';
+            
+            displayItems.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'grid-item';
+                el.innerHTML = `
+                    <div class="grid-img">${item.icon}</div>
+                    <div style="font-weight:bold; font-size:14px;">${item.name}</div>
+                `;
+                
+                el.addEventListener('click', () => {
+                    if (item.id === currentTarget.id) {
+                        goToDetailPhase();
+                    } else {
+                        showResult("商品の選択ミス！", null, "焦って違う商品をカートに入れてしまった...");
+                    }
+                });
+                grid.appendChild(el);
+            });
+        }
+
+        // --- フェーズ2: カート追加 ---
+        function goToDetailPhase() {
+            hideAllScreens();
+            screens.detail.classList.remove('hidden');
+            
+            document.getElementById('detail-img').textContent = currentTarget.icon;
+            document.getElementById('detail-name').textContent = currentTarget.name;
+            
+            const btnCart = document.getElementById('btn-cart');
+            const statusMsg = document.getElementById('detail-status');
+            
+            detailState = 'WAITING';
+            btnCart.className = 'action-btn btn-waiting';
+            btnCart.textContent = 'カートに入れる（準備中）';
+            statusMsg.textContent = "セール開始まで待機中...";
+            statusMsg.style.color = "#f39c12";
+
+            distractionIntervalId = setInterval(spawnFakePopup, 600 + Math.random() * 800);
+
+            const delay = Math.floor(Math.random() * 3000) + 2000;
+            timeoutId = setTimeout(() => {
+                detailState = 'READY';
+                clearInterval(distractionIntervalId);
+                btnCart.className = 'action-btn btn-ready';
+                btnCart.textContent = 'カートに入れる！！！';
+                statusMsg.textContent = "今だ！";
+                statusMsg.style.color = "#e74c3c";
+            }, delay);
+
+            btnCart.onclick = () => {
+                if (detailState === 'WAITING') {
+                    clearInterval(distractionIntervalId);
+                    clearTimeout(timeoutId);
+                    showResult("フライング！", null, "開始前にボタンを押して弾かれました。");
+                } else if (detailState === 'READY') {
+                    goToCheckoutPhase();
+                }
+            };
+        }
+
+        // --- フェーズ3: 決済 ---
+        function goToCheckoutPhase() {
+            hideAllScreens();
+            screens.checkout.classList.remove('hidden');
+            
+            const chkTerms = document.getElementById('check-terms');
+            const inputCvv = document.getElementById('input-cvv');
+            const btnPay = document.getElementById('btn-pay');
+            const errorMsg = document.getElementById('checkout-error');
+            
+            currentCvv = String(Math.floor(100 + Math.random() * 900));
+            document.getElementById('required-cvv').textContent = currentCvv;
+            errorMsg.textContent = '';
+            
+            setTimeout(() => inputCvv.focus(), 100);
+
+            btnPay.onclick = () => {
+                errorMsg.textContent = '';
+                
+                if (inputCvv.value !== currentCvv) {
+                    errorMsg.textContent = '※セキュリティコードが間違っています！';
+                    return;
+                }
+                if (!chkTerms.checked) {
+                    errorMsg.textContent = '※利用規約の同意が必要です！';
+                    return;
+                }
+                
+                // 決済ボタンを押した時点のタイム
+                const endTime = performance.now();
+                const totalTime = endTime - gameStartTime;
+                const totalTimeInSeconds = totalTime / 1000;
+                
+                // 売り切れ時間（タイムリミット）を過ぎていないかチェック
+                if (totalTime > soldOutTime) {
+                    showResult("売り切れました...", null, `在庫は ${ (soldOutTime/1000).toFixed(2) } 秒で無くなりました。<br>あなたのタイム: ${totalTimeInSeconds.toFixed(2)} 秒`);
+                } else {
+                    showResult("購入成功！", totalTimeInSeconds, `在庫がなくなるまで残り ${ ((soldOutTime - totalTime)/1000).toFixed(2) } 秒でした。ギリギリ！`);
+                }
+            };
+        }
+
+        // --- フェーズ4: 結果表示 ---
+        function showResult(title, timeInSeconds, reason) {
+            hideAllScreens();
+            screens.result.classList.remove('hidden');
+            clearPopups();
+            
+            document.getElementById('result-title').textContent = title;
+            const timeDisplay = document.getElementById('result-time');
+            const evalDisplay = document.getElementById('result-eval');
+            const bestDisplay = document.getElementById('best-score-display');
+
+            if (timeInSeconds === null) {
+                // 失敗時（ミス、またはタイムオーバー）
+                timeDisplay.textContent = "---";
+                timeDisplay.style.color = "#7f8c8d";
+                evalDisplay.innerHTML = `<span style="color:#e74c3c">${reason}</span>`;
+                bestDisplay.textContent = bestScore ? `最高記録: ${bestScore} 秒` : "最高記録: なし";
+            } else {
+                // 成功時
+                timeDisplay.textContent = timeInSeconds.toFixed(3) + " 秒";
+                timeDisplay.style.color = "#2ecc71";
+                
+                let rank = "";
+                if (timeInSeconds < 5.0) rank = "転売ボットレベルの速度です🤖<br>";
+                else if (timeInSeconds < 7.0) rank = "プロの買い物客です！✨<br>";
+                else rank = "無事に買えました🛒<br>";
+                
+                evalDisplay.innerHTML = rank + `<span style="font-size: 14px; color: #7f8c8d;">${reason}</span>`;
+
+                if (!bestScore || timeInSeconds < parseFloat(bestScore)) {
+                    bestScore = timeInSeconds.toFixed(3);
+                    localStorage.setItem('flashSaleTotalBestScore_v5', bestScore);
+                    bestDisplay.textContent = `最高記録: ${bestScore} 秒 ✨NEW!✨`;
+                    bestDisplay.style.color = "#e74c3c";
+                } else {
+                    bestDisplay.textContent = `最高記録: ${bestScore} 秒`;
+                    bestDisplay.style.color = "#f39c12";
+                }
+            }
+
+            document.getElementById('btn-retry').onclick = initApp;
+        }
+
+        function spawnFakePopup() {
+            const container = document.getElementById('app-container');
+            const popup = document.createElement('div');
+            popup.className = 'fake-popup';
+            const msgs = ["⚠️ 別タブで開かれています", "🔔 クーポンを獲得！", "⏳ サーバー混雑中", "🛒 在庫わずか！"];
+            popup.textContent = msgs[Math.floor(Math.random() * msgs.length)];
+
+            const x = Math.random() * (container.clientWidth - 150);
+            const y = Math.random() * (container.clientHeight - 50);
+            
+            popup.style.left = `${x}px`;
+            popup.style.top = `${y}px`;
+
+            container.appendChild(popup);
+            setTimeout(() => { if (container.contains(popup)) container.removeChild(popup); }, 1200);
+        }
+
+        function clearPopups() {
+            document.querySelectorAll('.fake-popup').forEach(p => p.remove());
+        }
+
+        // 初期起動
+        initApp();
+    </script>
+</body>
+</html>
