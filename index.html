@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>タイムセール争奪戦 - 限界突破版</title>
+    <title>タイムセール争奪戦 - 絶望の3秒版</title>
     <style>
         :root {
             --primary: #ff5a5f;
@@ -147,7 +147,7 @@
         <div id="screen-start" class="screen">
             <div class="start-box">
                 <h1>決戦の準備は<br>いいですか？</h1>
-                <p>商品は8秒〜20秒で売り切れます。<br>誰よりも早く決済を完了させろ！</p>
+                <p>商品は<span style="color:#e74c3c;">3秒〜10秒</span>で売り切れます。<br>ボットに負けず最速で決済しろ！</p>
                 <button id="btn-start" class="btn-start">開始</button>
             </div>
         </div>
@@ -223,9 +223,9 @@
         let currentTarget = null;
         let currentCvv = "";
 
-        let bestScore = localStorage.getItem('flashSaleTotalBestScore_v5');
+        // ストレージのキーをv5.1用に変更（記録リセット）
+        let bestScore = localStorage.getItem('flashSaleTotalBestScore_v5_1');
 
-        // 商品のマスターデータ
         const productPool = [
             { id: 1, name: "限定ゲーミングPC", icon: "💻" },
             { id: 2, name: "幻のグラボ RTX9090", icon: "🖲️" },
@@ -241,7 +241,6 @@
             Object.values(screens).forEach(s => s.classList.add('hidden'));
         }
 
-        // --- 初期化（スタート画面） ---
         function initApp() {
             hideAllScreens();
             screens.start.classList.remove('hidden');
@@ -249,12 +248,11 @@
             document.getElementById('check-terms').checked = false;
         }
 
-        // 開始ボタンの処理
+        // --- 開始ボタンの処理 ---
         document.getElementById('btn-start').addEventListener('click', () => {
-            // 8000ms 〜 20000ms の間で売り切れ時間を決定
-            soldOutTime = Math.random() * 12000 + 8000;
+            // 3000ms 〜 10000ms の間で売り切れ時間を決定 (3秒〜10秒)
+            soldOutTime = Math.random() * 7000 + 3000;
             
-            // 全体の計測をこの瞬間からスタート
             gameStartTime = performance.now();
             
             setupPhase1();
@@ -311,6 +309,7 @@
 
             distractionIntervalId = setInterval(spawnFakePopup, 600 + Math.random() * 800);
 
+            // カートボタンが有効になるまでの待機時間 (2秒〜5秒)
             const delay = Math.floor(Math.random() * 3000) + 2000;
             timeoutId = setTimeout(() => {
                 detailState = 'READY';
@@ -360,12 +359,11 @@
                     return;
                 }
                 
-                // 決済ボタンを押した時点のタイム
                 const endTime = performance.now();
                 const totalTime = endTime - gameStartTime;
                 const totalTimeInSeconds = totalTime / 1000;
                 
-                // 売り切れ時間（タイムリミット）を過ぎていないかチェック
+                // タイムリミット判定
                 if (totalTime > soldOutTime) {
                     showResult("売り切れました...", null, `在庫は ${ (soldOutTime/1000).toFixed(2) } 秒で無くなりました。<br>あなたのタイム: ${totalTimeInSeconds.toFixed(2)} 秒`);
                 } else {
@@ -386,26 +384,24 @@
             const bestDisplay = document.getElementById('best-score-display');
 
             if (timeInSeconds === null) {
-                // 失敗時（ミス、またはタイムオーバー）
                 timeDisplay.textContent = "---";
                 timeDisplay.style.color = "#7f8c8d";
                 evalDisplay.innerHTML = `<span style="color:#e74c3c">${reason}</span>`;
                 bestDisplay.textContent = bestScore ? `最高記録: ${bestScore} 秒` : "最高記録: なし";
             } else {
-                // 成功時
                 timeDisplay.textContent = timeInSeconds.toFixed(3) + " 秒";
                 timeDisplay.style.color = "#2ecc71";
                 
                 let rank = "";
-                if (timeInSeconds < 5.0) rank = "転売ボットレベルの速度です🤖<br>";
-                else if (timeInSeconds < 7.0) rank = "プロの買い物客です！✨<br>";
+                if (timeInSeconds < 4.0) rank = "神業です！転売ヤーを超えました🤖<br>";
+                else if (timeInSeconds < 6.0) rank = "プロの買い物客です！✨<br>";
                 else rank = "無事に買えました🛒<br>";
                 
                 evalDisplay.innerHTML = rank + `<span style="font-size: 14px; color: #7f8c8d;">${reason}</span>`;
 
                 if (!bestScore || timeInSeconds < parseFloat(bestScore)) {
                     bestScore = timeInSeconds.toFixed(3);
-                    localStorage.setItem('flashSaleTotalBestScore_v5', bestScore);
+                    localStorage.setItem('flashSaleTotalBestScore_v5_1', bestScore);
                     bestDisplay.textContent = `最高記録: ${bestScore} 秒 ✨NEW!✨`;
                     bestDisplay.style.color = "#e74c3c";
                 } else {
