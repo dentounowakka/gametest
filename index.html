@@ -2,304 +2,347 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StudyTracker</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>High Function Reader v33</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        /* --- 基本設定 --- */
+        html, body {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background: #222;
+            font-family: -apple-system, BlinkMacSystemFont, "Hiragino Mincho ProN", serif;
+            user-select: none; -webkit-user-select: none;
+        }
+
+        /* --- ヘッダー --- */
+        header {
+            position: fixed; top: 0; left: 0; right: 0; height: 50px;
+            background: #1a1a1a; color: #ddd; z-index: 100;
+            display: flex; align-items: center; padding: 0 10px;
+            border-bottom: 1px solid #333; gap: 10px;
+        }
+        
+        /* ファイル選択ボタン */
+        .file-label {
+            background: #0066cc; color: white; padding: 6px 10px; 
+            border-radius: 4px; font-size: 12px; cursor: pointer; flex-shrink: 0;
+        }
+        input[type="file"] { display: none; }
+
+        /* 目次プルダウン（新機能） */
+        #tocSelect {
+            flex-grow: 1; /* 余ったスペースを使う */
+            background: #333; color: #fff; border: 1px solid #555;
+            padding: 5px; border-radius: 4px; font-size: 14px;
+            max-width: 100%; text-overflow: ellipsis;
+        }
+
+        /* 縦書き切替ボタン */
+        #toggleBtn {
+            background: #444; color: #fff; border: none; 
+            padding: 6px 10px; border-radius: 4px; font-size: 12px; flex-shrink: 0;
+        }
+
+        /* --- フッター --- */
+        footer {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 60px;
+            background: #1a1a1a; color: #ddd; z-index: 100;
+            display: flex; justify-content: center; align-items: center; gap: 20px;
+            border-top: 1px solid #333;
+        }
+        .nav-btn { background: #444; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; font-size: 16px; }
+
+        /* --- ビューワー --- */
+        #viewer-window {
+            position: fixed; top: 50px; bottom: 60px; left: 0; right: 0;
+            background: #fcfaf2; overflow: hidden;
+        }
+
+        #content {
+            margin: 0; padding: 20px; box-sizing: border-box;
+            font-size: 19px; line-height: 1.9; color: #111; text-align: justify;
+            position: absolute; top: 0;
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* --- 強制リセット --- */
+        #content * { max-width: 100% !important; height: auto !important; box-sizing: border-box !important; }
+        img { max-height: 90% !important; max-width: 90% !important; width: auto !important; display: block; margin: 0 auto; object-fit: contain; }
+
+        /* --- モード --- */
+        .mode-horizontal { writing-mode: horizontal-tb; left: 0; transform-origin: top left; }
+        .mode-vertical { writing-mode: vertical-rl; text-orientation: mixed; right: 0; transform-origin: top right; }
+
+        /* タップ領域 */
+        .tap-zone { position: fixed; top: 50px; bottom: 60px; width: 20%; z-index: 50; }
+        #tap-left { left: 0; }
+        #tap-right { right: 0; }
+        
+        /* メッセージ＆しおりボタン */
+        #msg-box {
+            position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); color: white; padding: 8px 20px; 
+            border-radius: 20px; font-size: 12px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200;
+        }
+        
+        /* 続きから読むボタン（しおり用） */
+        #resume-btn {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: #007bff; color: white; padding: 15px 30px;
+            border-radius: 30px; font-size: 16px; font-weight: bold;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); cursor: pointer;
+            z-index: 300; display: none; border: 2px solid white;
+        }
+    </style>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans p-4 md:p-8">
-    <div class="max-w-6xl mx-auto">
-        <h1 class="text-3xl font-bold text-center mb-8 text-blue-600">StudyTracker</h1>
+<body>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="space-y-6">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <h2 class="text-xl font-bold mb-4">行動を記録</h2>
-                    <form id="activityForm" class="space-y-4">
-                        <div>
-                            <label class="block text-sm text-gray-600 mb-1">日付</label>
-                            <input type="date" id="date" required class="w-full border rounded p-2 focus:outline-none focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm text-gray-600 mb-1">カテゴリ</label>
-                            <select id="category" class="w-full border rounded p-2 focus:outline-none focus:border-blue-500">
-                                <option value="学習">学習</option>
-                                <option value="睡眠">睡眠</option>
-                                <option value="休憩">休憩</option>
-                                <option value="仕事">仕事</option>
-                                <option value="その他">その他</option>
-                            </select>
-                        </div>
+<header>
+    <label class="file-label">📂<input type="file" id="inputFile" accept=".epub"></label>
+    <select id="tocSelect">
+        <option>ファイルを選択してください</option>
+    </select>
+    <button id="toggleBtn">縦書き</button>
+</header>
 
-                        <div id="learningFields" class="space-y-4 border-l-4 border-blue-400 pl-3 py-1">
-                            <div>
-                                <label class="block text-sm text-blue-700 font-semibold mb-1">教科</label>
-                                <select id="subject" class="w-full border rounded p-2 focus:outline-none focus:border-blue-500">
-                                    <option value="英語">英語</option>
-                                    <option value="数学">数学</option>
-                                    <option value="国語">国語</option>
-                                    <option value="理科">理科</option>
-                                    <option value="社会">社会</option>
-                                    <option value="プログラミング">プログラミング</option>
-                                    <option value="その他">その他</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm text-blue-700 font-semibold mb-1">できるようになったこと</label>
-                                <textarea id="learned" rows="2" placeholder="例：二次関数のグラフが書けるようになった！" class="w-full border rounded p-2 focus:outline-none focus:border-blue-500"></textarea>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm text-gray-600 mb-1">開始</label>
-                                <input type="time" id="startTime" required class="w-full border rounded p-2 focus:outline-none focus:border-blue-500">
-                            </div>
-                            <div>
-                                <label class="block text-sm text-gray-600 mb-1">終了</label>
-                                <input type="time" id="endTime" required class="w-full border rounded p-2 focus:outline-none focus:border-blue-500">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm text-gray-600 mb-1">メモ (任意)</label>
-                            <input type="text" id="memo" placeholder="使用した参考書など" class="w-full border rounded p-2 focus:outline-none focus:border-blue-500">
-                        </div>
-                        <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 transition">
-                            記録を追加する
-                        </button>
-                    </form>
-                </div>
-
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <h2 class="text-xl font-bold mb-4">今日の記録</h2>
-                    <div id="timeline" class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                        </div>
-                </div>
-            </div>
-
-            <div class="lg:col-span-2 space-y-6">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <h2 class="text-xl font-bold mb-4">日別 学習時間の推移 (教科別)</h2>
-                    <div class="relative h-64">
-                        <canvas id="barChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <h2 class="text-xl font-bold mb-4" id="pieChartTitle">今日の行動内訳</h2>
-                    <div class="relative h-72 flex justify-center">
-                        <canvas id="pieChart"></canvas>
-                    </div>
-                </div>
+<div id="viewer-window">
+    <div id="content" class="mode-horizontal">
+        <div style="height:100%; display:flex; justify-content:center; align-items:center; writing-mode:horizontal-tb;">
+            <div style="text-align:center; color:#888;">
+                <b>v33 しおり＆目次搭載版</b><br>
+                右上のリストから章移動できます
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        // Chart.jsにプラグインを登録
-        Chart.register(ChartDataLabels);
+<div id="tap-left" class="tap-zone"></div>
+<div id="tap-right" class="tap-zone"></div>
 
-        // --- データと色の設定 ---
-        let activities = JSON.parse(localStorage.getItem('studyTrackerData')) || [];
-        let barChartInstance = null;
-        let pieChartInstance = null;
+<div id="msg-box">Message</div>
+<div id="resume-btn">🔖 続きから読む</div>
 
-        // 教科ごとの固定カラー（色を分けて一目でわかるようにする）
-        const subjectColors = {
-            '英語': '#ef4444',     // 赤
-            '数学': '#3b82f6',     // 青
-            '国語': '#f59e0b',     // オレンジ
-            '理科': '#10b981',     // 緑
-            '社会': '#8b5cf6',     // 紫
-            'プログラミング': '#14b8a6', // ティール
-            'その他': '#6b7280'    // グレー
-        };
-        // その他の行動の固定カラー
-        const categoryColors = {
-            '睡眠': '#94a3b8', // 薄いグレー
-            '休憩': '#a7f3d0', // 薄い緑
-            '仕事': '#fcd34d', // 薄い黄色
-            'その他': '#e2e8f0' // さらに薄いグレー
-        };
+<footer>
+    <button id="prevBtn" class="nav-btn">◀</button>
+    <span id="page-info" style="font-size:14px;">-- / --</span>
+    <button id="nextBtn" class="nav-btn">▶</button>
+</footer>
 
-        // 今日の日付を初期セット
-        document.getElementById('date').value = new Date().toLocaleDateString('ja-JP').split('/').map(n => n.padStart(2, '0')).join('-');
+<script>
+    const content = document.getElementById('content');
+    const viewerWindow = document.getElementById('viewer-window');
+    const pageInfo = document.getElementById('page-info');
+    const tocSelect = document.getElementById('tocSelect');
+    const resumeBtn = document.getElementById('resume-btn');
+    const msgBox = document.getElementById('msg-box');
+    
+    let textFiles = [];
+    let currentChapterIndex = 0;
+    let currentZip = null;
+    let isVertical = false;
+    let currentFileName = ""; // しおり保存用
 
-        // カテゴリ変更時の表示切り替え
-        document.getElementById('category').addEventListener('change', function(e) {
-            const learningFields = document.getElementById('learningFields');
-            learningFields.style.display = e.target.value === '学習' ? 'block' : 'none';
-        });
+    let currentPage = 0;
+    let totalPages = 1;
+    let onePageSize = 0;
 
-        // 時間計算
-        function calculateHours(start, end) {
-            const [startH, startM] = start.split(':').map(Number);
-            const [endH, endM] = end.split(':').map(Number);
-            let diff = (endH + endM / 60) - (startH + startM / 60);
-            if (diff < 0) diff += 24;
-            return diff;
+    // --- レイアウトロジック (v32準拠) ---
+    function refreshLayout(targetPage = 0) {
+        const w = viewerWindow.clientWidth;
+        const h = viewerWindow.clientHeight;
+        const SAFE_MARGIN_H = 30; 
+        const COL_GAP = 50;
+        
+        onePageSize = w;
+
+        if (isVertical) {
+            content.className = "mode-vertical";
+            content.style.height = (h - SAFE_MARGIN_H) + "px";
+            content.style.padding = `${SAFE_MARGIN_H/2}px 20px`;
+            content.style.columnWidth = w + "px";
+            content.style.columnGap = COL_GAP + "px";
+            content.style.width = "auto"; 
+        } else {
+            content.className = "mode-horizontal";
+            content.style.height = (h - SAFE_MARGIN_H) + "px";
+            content.style.padding = "20px 20px";
+            content.style.columnWidth = (w - COL_GAP) + "px";
+            content.style.columnGap = COL_GAP + "px";
+            content.style.width = "auto";
         }
 
-        // フォーム送信
-        document.getElementById('activityForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const category = document.getElementById('category').value;
-            const isLearning = category === '学習';
+        setTimeout(() => {
+            const fullSize = content.scrollWidth;
+            if (fullSize <= w) totalPages = 1;
+            else totalPages = Math.ceil((fullSize + 10) / w);
+            
+            currentPage = targetPage;
+            if (currentPage >= totalPages) currentPage = totalPages - 1;
+            if (currentPage < 0) currentPage = 0;
 
-            activities.push({
-                id: Date.now().toString(),
-                date: document.getElementById('date').value,
-                category: category,
-                startTime: document.getElementById('startTime').value,
-                endTime: document.getElementById('endTime').value,
-                memo: document.getElementById('memo').value,
-                subject: isLearning ? document.getElementById('subject').value : '',
-                learned: isLearning ? document.getElementById('learned').value : '',
-            });
-            saveData();
-            document.getElementById('memo').value = '';
-            document.getElementById('learned').value = '';
-        });
+            updateView();
+        }, 150);
+    }
 
-        function saveData() {
-            localStorage.setItem('studyTrackerData', JSON.stringify(activities));
-            updateUI();
+    function updateView() {
+        const moveDist = currentPage * onePageSize;
+        if (isVertical) {
+            content.style.transform = `translateX(${moveDist}px)`;
+        } else {
+            content.style.transform = `translateX(-${moveDist}px)`;
         }
+        pageInfo.innerText = `${currentPage + 1} / ${totalPages}`;
+        
+        // ★ページ移動のたびにしおり保存
+        saveBookmark();
+    }
 
-        function deleteActivity(id) {
-            activities = activities.filter(a => a.id !== id);
-            saveData();
-        }
+    // --- ファイル処理 ---
+    document.getElementById('inputFile').onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        currentFileName = file.name;
+        
+        if (typeof JSZip === 'undefined') { alert('エラー: ネット接続を確認してください'); return; }
+        
+        const zip = await JSZip.loadAsync(file);
+        currentZip = zip;
+        textFiles = [];
 
-        // --- 画面描画 ---
-        function updateUI() {
-            renderTimeline();
-            renderCharts();
-        }
-
-        function renderTimeline() {
-            const timelineContainer = document.getElementById('timeline');
-            const currentDate = document.getElementById('date').value;
-            const todayActivities = activities.filter(a => a.date === currentDate).reverse();
-
-            if (todayActivities.length === 0) {
-                timelineContainer.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">記録がありません</p>';
-                return;
+        // ファイルリスト作成
+        zip.forEach((path, entry) => {
+            if (entry.name.match(/\.(xhtml|html|htm)$/i) && !entry.name.includes(".ncx")) {
+                textFiles.push(entry);
             }
+        });
+        
+        // 並び替え
+        textFiles.sort((a,b) => {
+             const na = a.name.toLowerCase(); const nb = b.name.toLowerCase();
+             if(na.includes("cover")||na.includes("表紙")) return -1;
+             if(nb.includes("cover")||nb.includes("表紙")) return 1;
+             return na.localeCompare(nb);
+        });
 
-            timelineContainer.innerHTML = todayActivities.map(act => `
-                <div class="p-4 border border-gray-100 rounded-lg bg-white shadow-sm flex flex-col relative">
-                    <button onclick="deleteActivity('${act.id}')" class="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-xs">削除</button>
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="font-bold text-gray-700 min-w-[3rem]">${act.category}</span>
-                        <span class="text-gray-500 text-sm">${act.startTime} - ${act.endTime} (${calculateHours(act.startTime, act.endTime).toFixed(1)}h)</span>
-                        ${act.subject ? `<span class="text-white text-xs px-2 py-0.5 rounded-full" style="background-color: ${subjectColors[act.subject] || '#3b82f6'}">${act.subject}</span>` : ''}
-                    </div>
-                    ${act.memo ? `<div class="text-gray-600 text-xs mb-1"><span class="text-gray-400">メモ:</span> ${act.memo}</div>` : ''}
-                    ${act.learned ? `<div class="mt-2 bg-green-50 border border-green-100 p-2 rounded text-sm text-green-800"><div class="font-bold text-xs text-green-600 mb-0.5">✨ できるようになったこと</div>${act.learned.replace(/\n/g, '<br>')}</div>` : ''}
-                </div>
-            `).join('');
+        if (textFiles.length > 0) {
+            // ★目次（プルダウン）の作成
+            updateTOC();
+            
+            // ★しおりチェック
+            const bookmark = localStorage.getItem('bm_v33_' + currentFileName);
+            if (bookmark) {
+                // しおりがあればボタンを表示して、クリック待ち
+                resumeBtn.style.display = 'block';
+                resumeBtn.onclick = () => {
+                    const data = JSON.parse(bookmark);
+                    loadChapter(data.chap, data.page);
+                    resumeBtn.style.display = 'none';
+                };
+                // 裏ではとりあえず最初を開いておく
+                loadChapter(0);
+            } else {
+                resumeBtn.style.display = 'none';
+                loadChapter(0);
+            }
         }
+    };
 
-        function renderCharts() {
-            const currentDate = document.getElementById('date').value;
-            document.getElementById('pieChartTitle').innerText = `${currentDate} の行動内訳`;
+    // ★目次作成関数
+    function updateTOC() {
+        tocSelect.innerHTML = ""; // クリア
+        textFiles.forEach((file, index) => {
+            const option = document.createElement("option");
+            option.value = index;
+            // パスからファイル名だけ抽出して表示 (例: Chapter01.xhtml)
+            const simpleName = file.name.split('/').pop();
+            option.text = `[${index+1}] ${simpleName}`;
+            tocSelect.appendChild(option);
+        });
+    }
 
-            // --- 1. 教科別の積み上げ棒グラフ用データ計算 ---
-            const studyDataByDateAndSubject = {};
-            const subjectsSet = new Set();
+    // ★目次選択イベント
+    tocSelect.onchange = (e) => {
+        const idx = parseInt(e.target.value);
+        loadChapter(idx);
+    };
 
-            activities.filter(a => a.category === '学習').forEach(act => {
-                const hours = calculateHours(act.startTime, act.endTime);
-                if (!studyDataByDateAndSubject[act.date]) studyDataByDateAndSubject[act.date] = {};
-                studyDataByDateAndSubject[act.date][act.subject] = (studyDataByDateAndSubject[act.date][act.subject] || 0) + hours;
-                subjectsSet.add(act.subject);
-            });
+    async function loadChapter(index, targetPage = 0) {
+        if (index < 0 || index >= textFiles.length) return;
+        currentChapterIndex = index;
+        
+        // 目次の選択状態を同期
+        tocSelect.value = index;
 
-            const dates = Object.keys(studyDataByDateAndSubject).sort();
-            const subjectsArray = Array.from(subjectsSet);
+        content.style.opacity = 0;
+        
+        const txt = await textFiles[index].async("string");
+        let html = txt.match(/<body[^>]*>([\s\S]*)<\/body>/i)?.[1] || txt;
+        content.innerHTML = html;
+        await restoreImages();
 
-            const barDatasets = subjectsArray.map(subject => ({
-                label: subject,
-                data: dates.map(date => studyDataByDateAndSubject[date][subject] ? Number(studyDataByDateAndSubject[date][subject].toFixed(1)) : 0),
-                backgroundColor: subjectColors[subject] || '#3b82f6',
-            }));
+        setTimeout(() => {
+            refreshLayout(targetPage);
+            content.style.opacity = 1;
+            showMsg(`Chapter ${index+1}`);
+        }, 200);
+    }
 
-            // --- 2. 円グラフ用データ計算（学習は教科に分割） ---
-            const dailyData = {};
-            activities.filter(a => a.date === currentDate).forEach(act => {
-                const hours = calculateHours(act.startTime, act.endTime);
-                // 学習の場合は教科名に、それ以外はカテゴリ名にする
-                const labelName = act.category === '学習' ? `学習 (${act.subject})` : act.category;
-                dailyData[labelName] = (dailyData[labelName] || 0) + hours;
-            });
+    // --- しおり機能 ---
+    function saveBookmark() {
+        if (!currentFileName) return;
+        const data = {
+            chap: currentChapterIndex,
+            page: currentPage
+        };
+        localStorage.setItem('bm_v33_' + currentFileName, JSON.stringify(data));
+    }
 
-            const pieLabels = Object.keys(dailyData);
-            const pieData = Object.values(dailyData).map(h => Number(h.toFixed(1)));
-            const pieBackgroundColors = pieLabels.map(label => {
-                if (label.startsWith('学習 (')) {
-                    const subject = label.match(/学習 \((.+)\)/)[1];
-                    return subjectColors[subject] || '#3b82f6';
-                }
-                return categoryColors[label] || '#94a3b8';
-            });
-
-            // --- グラフ描画オプション共通設定 ---
-            const dataLabelsConfig = {
-                color: '#fff',
-                font: { weight: 'bold', size: 12 },
-                formatter: (value) => value > 0 ? value + 'h' : '', // 0hは非表示にしてスッキリさせる
-                textShadowBlur: 4,
-                textShadowColor: 'rgba(0,0,0,0.5)' // 白文字が見やすいように影をつける
-            };
-
-            // 棒グラフ
-            if (barChartInstance) barChartInstance.destroy();
-            barChartInstance = new Chart(document.getElementById('barChart'), {
-                type: 'bar',
-                data: { labels: dates, datasets: barDatasets },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: { stacked: true },
-                        y: { stacked: true, title: { display: true, text: '時間 (h)' } }
-                    },
-                    plugins: {
-                        datalabels: dataLabelsConfig,
-                        tooltip: {
-                            callbacks: {
-                                label: (context) => `${context.dataset.label}: ${context.parsed.y}h`
-                            }
-                        }
-                    }
-                }
-            });
-
-            // 円グラフ
-            if (pieChartInstance) pieChartInstance.destroy();
-            pieChartInstance = new Chart(document.getElementById('pieChart'), {
-                type: 'doughnut',
-                data: {
-                    labels: pieLabels,
-                    datasets: [{
-                        data: pieData,
-                        backgroundColor: pieBackgroundColors
-                    }]
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    plugins: {
-                        datalabels: dataLabelsConfig
-                    }
-                }
-            });
+    async function restoreImages() {
+        if (!currentZip) return;
+        for (let img of content.querySelectorAll('img, image')) {
+            let src = img.getAttribute('src') || img.getAttribute('xlink:href');
+            if (!src) continue;
+            let fname = src.split('/').pop();
+            let target = Object.values(currentZip.files).find(f => f.name.endsWith(fname));
+            if (target) {
+                const b64 = await target.async("base64");
+                const ext = fname.split('.').pop().toLowerCase();
+                let mime = ext==='png'?'image/png':(ext==='svg'?'image/svg+xml':'image/jpeg');
+                const d = `data:${mime};base64,${b64}`;
+                if(img.hasAttribute('src')) img.src = d;
+                else img.setAttribute('xlink:href', d);
+            }
         }
+    }
 
-        document.getElementById('date').addEventListener('change', updateUI);
-        updateUI();
-    </script>
+    // --- 操作 ---
+    function goNext() {
+        if (currentPage < totalPages - 1) { currentPage++; updateView(); }
+        else if (currentChapterIndex < textFiles.length - 1) { loadChapter(currentChapterIndex + 1); }
+        else showMsg("最後のページです");
+    }
+    function goPrev() {
+        if (currentPage > 0) { currentPage--; updateView(); }
+        else if (currentChapterIndex > 0) { 
+            // 前の章へ（ページ指定なし＝0ページ目へ）
+            // ※前の章の「最後」に飛ぶのは計算困難なため先頭へ飛びます
+            loadChapter(currentChapterIndex - 1); 
+        }
+    }
+
+    document.getElementById('nextBtn').onclick = goNext;
+    document.getElementById('prevBtn').onclick = goPrev;
+    document.getElementById('tap-left').onclick = () => isVertical ? goNext() : goPrev();
+    document.getElementById('tap-right').onclick = () => isVertical ? goPrev() : goNext();
+
+    document.getElementById('toggleBtn').onclick = (e) => {
+        isVertical = !isVertical;
+        e.target.innerText = isVertical ? "横書き" : "縦書き";
+        refreshLayout(currentPage); // ページ位置を維持してレイアウト変更
+    };
+    
+    window.onresize = () => setTimeout(() => refreshLayout(currentPage), 300);
+    function showMsg(s) { msgBox.innerText=s; msgBox.style.opacity=1; setTimeout(()=>msgBox.style.opacity=0,2000); }
+</script>
 </body>
 </html>
